@@ -17,6 +17,7 @@ Maven plugin that waits until a connection is available. In the case of an http 
 | initialWait | 0         | Time in ms to wait before initial try connecting |
 | username    |           | A username used for basic authentication |
 | password    |           | The password used for basic authentication |
+| responseRegex |           | A regular expression that should match the response before continuing |
 
 ## Usage
 ```
@@ -43,6 +44,7 @@ Maven plugin that waits until a connection is available. In the case of an http 
             <initialWait>10000</initialWait>
             <username>admin</username>
             <password>admin</password>
+            <responseRegex>OK</responseRegex>
           </configuration>
         </execution>
       </executions>

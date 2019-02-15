@@ -15,6 +15,7 @@ import java.net.MalformedURLException;
 import java.net.PasswordAuthentication;
 import java.net.URL;
 import java.net.URLConnection;
+import java.util.regex.Pattern;
 
 @Mojo(name = "wait-http")
 public class WaitMojo extends AbstractMojo {
@@ -30,10 +31,10 @@ public class WaitMojo extends AbstractMojo {
 	@Parameter(property="file", defaultValue="/")
 	String file;
 
-	@Parameter(property="username", defaultValue="")
+	@Parameter(property="username")
 	String username;
 
-	@Parameter(property="password", defaultValue="")
+	@Parameter(property="password")
 	String password;
 
 	@Parameter(property="timeout", defaultValue="30000")
@@ -47,9 +48,12 @@ public class WaitMojo extends AbstractMojo {
 
 	@Parameter(property="read", defaultValue="false")
 	boolean read;
-	
+
 	@Parameter(property="initialWait", defaultValue="0")
 	int initialWait;
+
+	@Parameter(property="responseRegex")
+	String responseRegex;
 
 	public void execute() throws MojoExecutionException {
 		if (skip) {
@@ -62,6 +66,7 @@ public class WaitMojo extends AbstractMojo {
 		getLog().info("Port: " + port);
 		getLog().info("File: " + file);
 		getLog().info("Basic auth: " + enableBasicAuthentication());
+		getLog().info("Regex: " + responseRegex);
 		URL url = getURL();
 		int count = maxcount;
 		int trials = 1;
@@ -74,6 +79,14 @@ public class WaitMojo extends AbstractMojo {
 			} catch (InterruptedException e1) { // do nothing
 			}
 		}
+
+		Pattern regex;
+		if (responseRegex != null & !"".equals(responseRegex)){
+			regex = Pattern.compile(responseRegex);
+		} else {
+			regex = null;
+		}
+
 		// try to connect
 		while (true) {
 			try {
@@ -102,15 +115,27 @@ public class WaitMojo extends AbstractMojo {
 				}
 
 				// if read is required, read everything from URL
-				if (read) {
+				StringBuffer response = new StringBuffer();
+				boolean match = regex == null;
+				if (read || regex != null) {
 					BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()));
 					String inputLine;
 
 					while ((inputLine = in.readLine()) != null) {
 						getLog().debug(inputLine);
+						match = regex.matcher(inputLine).find();
+						response.append(inputLine);
+						if (match){
+							getLog().info("Match found for regex " + responseRegex);
+							break;
+						}
 					}
 
 					in.close();
+				}
+
+				if (!match){
+					throw new IOException("No regex match found in response! Response: " + response.toString());
 				}
 
 				getLog().info("Success: - reached " + url);
@@ -157,6 +182,6 @@ public class WaitMojo extends AbstractMojo {
 	 * @return true if either pwd or username set
 	 */
 	private boolean enableBasicAuthentication() {
-		return !"".equals(username) || !"".equals(password);
+		return (username != null && !"".equals(username)) || (password != null && !"".equals(password));
 	}
 }
